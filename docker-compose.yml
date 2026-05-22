@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sprite-cutter:local
+    container_name: sprite-cutter
+    ports:
+      - "8080:8080"
+    volumes:
+      # Map the Windows asset folder into the container at /data.
+      # Adjust the host path to match your machine.
+      - "D:\\Game Asset:/data"
+    # Reads all env vars from .env in the project root. Adjust the file path
+    # if you keep .env elsewhere.
+    env_file:
+      - .env
+    # These override path-sensitive vars from .env so the container sees
+    # Linux paths instead of the Windows D:\ paths in your local .env.
+    environment:
+      PORT: 8080
+      INPUT_DIR: /data/input
+      OUTPUT_DIR: /data/output
+      PROMPTS_FILE: /data/prompts.json
+      PRESETS_FILE: /data/presets.json
+      PYTHON_BIN: python3
+      LLM_DEFAULT_PROMPT_FILE: /data/default_prompt.txt
+    restart: unless-stopped
