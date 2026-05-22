@@ -84,9 +84,11 @@ Gemini มี free tier (จำกัด ~5–15 req/min) ใช้ฟรีไ�
 | Phase | ขอบเขต | สถานะ |
 |-------|--------|-------|
 | 0 | Scaffolding (folder + skeleton + Docker + design tokens) | ✓ เสร็จ |
-| 1 | Core cut flow (engine + handlers + Vue cut workspace) | กำลังทำ |
-| 2 | Prompt Generator (LLM client + Vue prompt mode) | รอ |
-| 3 | Tileset Maker (engine + Vue tileset mode) | รอ |
+| 1 | Core cut flow (engine + handlers + Vue cut workspace) | ✓ เสร็จ |
+| 2 | Prompt Generator (Gemini/OpenAI client + Vue prompt mode) | ✓ เสร็จ |
+| 3 | Tileset Maker (engine + Vue tileset mode) | ✓ เสร็จ |
+
+> รอ user ตั้ง `LLM_API_KEY` ใน `.env` (default = Gemini) แล้วทดลองใช้งานจริง
 
 ดูรายละเอียดทั้งหมดใน [docs/03_Implementation_Plan.md](docs/03_Implementation_Plan.md)
 

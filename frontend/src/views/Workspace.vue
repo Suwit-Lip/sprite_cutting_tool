@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import CutMode from '@/components/workspace/CutMode.vue'
+import PromptMode from '@/components/workspace/PromptMode.vue'
+import TilesetMode from '@/components/workspace/TilesetMode.vue'
 import type { WorkspaceMode } from '@/types'
 
 const route = useRoute()
 const mode = computed<WorkspaceMode>(() => (route.params.mode as WorkspaceMode) || 'cut')
+const image = computed(() => (route.query.image as string) || '')
 </script>
 
 <template>
-  <section class="p-6">
-    <h1 class="mb-4 text-base font-medium">Workspace · {{ mode }}</h1>
-    <p class="text-[13px] text-text-muted">
-      Phase 1 lands the Cut mode (preview canvas + SVG overlay + live slider).
-      Phase 2 adds Prompt, Phase 3 adds Tileset.
-    </p>
-  </section>
+  <div class="h-full min-h-0">
+    <CutMode v-if="mode === 'cut'" :image="image" />
+    <PromptMode v-else-if="mode === 'prompt'" :image="image" />
+    <TilesetMode v-else-if="mode === 'tileset'" :image="image" />
+  </div>
 </template>

@@ -38,7 +38,7 @@ func Register(app *fiber.App, d Deps) {
 
 	preset := &presetHandler{d: d}
 	api.Get("/preset/list", preset.list)
-	api.Post("/preset/save", preset.save)
+	api.Post("/preset/save", preset.saveOne)
 	api.Delete("/preset/:id", preset.delete)
 
 	output := &outputHandler{d: d}
@@ -50,7 +50,7 @@ func Register(app *fiber.App, d Deps) {
 
 	prompt := &promptHandler{d: d}
 	api.Post("/prompt/generate", prompt.generate)
-	api.Post("/prompt/save", prompt.save)
+	api.Post("/prompt/save", prompt.saveRecord)
 	api.Get("/prompt/list", prompt.list)
 	api.Delete("/prompt/:id", prompt.delete)
 

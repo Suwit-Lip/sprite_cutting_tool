@@ -8,6 +8,7 @@ package static
 import (
 	"embed"
 	"io/fs"
+	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
@@ -19,14 +20,13 @@ var distFS embed.FS
 func Mount(app *fiber.App) {
 	sub, err := fs.Sub(distFS, "dist")
 	if err != nil {
-		// Should never happen — the embed directive guarantees the directory.
 		panic(err)
 	}
 
 	app.Use("/", filesystem.New(filesystem.Config{
-		Root:         filesystem.NewFileSystem(sub),
+		Root:         http.FS(sub),
 		Browse:       false,
 		Index:        "index.html",
-		NotFoundFile: "index.html", // SPA fallback for client-side routes.
+		NotFoundFile: "index.html",
 	}))
 }

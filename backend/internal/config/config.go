@@ -5,14 +5,18 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 )
 
 type Config struct {
-	Port      string
-	InputDir  string
-	OutputDir string
-	Prompts   string
-	Presets   string
+	Port string
+
+	mu        sync.RWMutex
+	inputDir  string
+	outputDir string
+
+	Prompts string
+	Presets string
 
 	PythonBin string
 	EngineDir string
@@ -20,6 +24,30 @@ type Config struct {
 	MaxUploadMB int
 
 	LLM LLMConfig
+}
+
+func (c *Config) InputDir() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.inputDir
+}
+
+func (c *Config) OutputDir() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.outputDir
+}
+
+func (c *Config) SetInputDir(p string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.inputDir = filepath.Clean(p)
+}
+
+func (c *Config) SetOutputDir(p string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.outputDir = filepath.Clean(p)
 }
 
 type LLMConfig struct {
@@ -32,17 +60,17 @@ type LLMConfig struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Port:        getenv("PORT", "8080"),
-		InputDir:    filepath.Clean(getenv("INPUT_DIR", `D:\Game Asset\input`)),
-		OutputDir:   filepath.Clean(getenv("OUTPUT_DIR", `D:\Game Asset\output`)),
+		inputDir:    filepath.Clean(getenv("INPUT_DIR", `D:\Game Asset\input`)),
+		outputDir:   filepath.Clean(getenv("OUTPUT_DIR", `D:\Game Asset\output`)),
 		Prompts:     filepath.Clean(getenv("PROMPTS_FILE", `D:\Game Asset\prompts.json`)),
 		Presets:     filepath.Clean(getenv("PRESETS_FILE", `D:\Game Asset\presets.json`)),
 		PythonBin:   getenv("PYTHON_BIN", defaultPython()),
 		EngineDir:   resolveEngineDir(),
 		MaxUploadMB: getenvInt("MAX_UPLOAD_MB", 50),
 		LLM: LLMConfig{
-			Provider:      getenv("LLM_PROVIDER", "openai"),
+			Provider:      getenv("LLM_PROVIDER", "gemini"),
 			APIKey:        os.Getenv("LLM_API_KEY"),
-			Model:         getenv("LLM_MODEL", "gpt-4.1-nano"),
+			Model:         getenv("LLM_MODEL", "gemini-2.5-flash"),
 			DefaultPrompt: os.Getenv("LLM_DEFAULT_PROMPT"),
 		},
 	}

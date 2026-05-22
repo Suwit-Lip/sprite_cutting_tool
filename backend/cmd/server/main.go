@@ -57,7 +57,7 @@ func run(cfg *config.Config) error {
 	static.Mount(app)
 
 	addr := ":" + cfg.Port
-	slog.Info("listening", "addr", addr, "input", cfg.InputDir, "output", cfg.OutputDir)
+	slog.Info("listening", "addr", addr, "input", cfg.InputDir(), "output", cfg.OutputDir())
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- app.Listen(addr) }()

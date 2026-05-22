@@ -16,10 +16,10 @@ type Provider interface {
 
 func New(cfg config.LLMConfig) (Provider, error) {
 	switch cfg.Provider {
-	case "openai", "":
-		return newOpenAI(cfg), nil
-	case "gemini":
+	case "gemini", "":
 		return newGemini(cfg), nil
+	case "openai":
+		return newOpenAI(cfg), nil
 	default:
 		return nil, fmt.Errorf("unknown LLM provider %q", cfg.Provider)
 	}

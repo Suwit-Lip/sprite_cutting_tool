@@ -88,6 +88,19 @@ sprite_cutting_tool/
 
 ---
 
+## สถานะ Phase ปัจจุบัน
+
+| Phase | สถานะ |
+|-------|-------|
+| 0 — Scaffolding | ✓ เสร็จ |
+| 1 — Core cut flow (engine + handlers + Vue UI) | ✓ เสร็จ |
+| 2 — Prompt Generator (Gemini default + OpenAI) | ✓ เสร็จ — รอ API key |
+| 3 — Tileset Maker | ✓ เสร็จ |
+
+ที่เหลือคือทดสอบกับภาพ sprite sheet จริง + ตั้ง `LLM_API_KEY` แล้วทดลอง prompt mode
+
+---
+
 ## Phase 0 — Scaffolding ✓ (เสร็จแล้ว)
 
 ตั้ง repo, dockerize, layout 3 ภาษา, design tokens + Tailwind, route stubs,
