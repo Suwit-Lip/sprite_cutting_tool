@@ -12,6 +12,8 @@ backend/tmp/
 backend/*.exe
 backend/sprite-cutter
 backend/coverage.out
+sprite-cutter
+sprite-cutter.exe
 
 # Python
 engine/__pycache__/
