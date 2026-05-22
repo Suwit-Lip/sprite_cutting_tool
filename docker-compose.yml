@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sprite-cutter:local
+    container_name: sprite-cutter
+    ports:
+      - "8080:8080"
+    volumes:
+      # Map the Windows asset folder into the container.
+      # Adjust the host path to match your machine.
+      - "D:\\Game Asset:/data"
+    environment:
+      PORT: 8080
+      INPUT_DIR: /data/input
+      OUTPUT_DIR: /data/output
+      PROMPTS_FILE: /data/prompts.json
+      PRESETS_FILE: /data/presets.json
+      PYTHON_BIN: python3
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-nano}
+      LLM_DEFAULT_PROMPT: ${LLM_DEFAULT_PROMPT:-}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
+    restart: unless-stopped

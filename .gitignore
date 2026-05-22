@@ -1,0 +1,41 @@
+# Env
+.env
+.env.local
+*.local
+
+# Claude Code local settings (per-machine permissions)
+.claude/settings.local.json
+
+# Go
+backend/bin/
+backend/tmp/
+backend/*.exe
+backend/sprite-cutter
+backend/coverage.out
+
+# Python
+engine/__pycache__/
+engine/.venv/
+engine/*.pyc
+
+# Node / Vue
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+
+# Build artifacts
+backend/internal/static/dist/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local data (mount points; shouldn't be committed even if accidentally created here)
+data/
+input/
+output/
+prompts.json
+presets.json

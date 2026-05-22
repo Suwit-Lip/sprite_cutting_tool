@@ -1,0 +1,66 @@
+/* Design tokens — mirrored from docs/design_handoff_sprite_cutter/prototype/styles.css.
+   Keep this file in sync with the prototype; Tailwind utilities reference these
+   variables via tailwind.config.ts. */
+
+:root {
+  --bg: oklch(0.985 0.008 75);
+  --bg-elevated: oklch(0.995 0.005 75);
+  --surface: oklch(0.965 0.012 75);
+  --surface-hover: oklch(0.945 0.016 70);
+  --surface-active: oklch(0.925 0.020 65);
+  --border: oklch(0.88 0.018 75);
+  --border-strong: oklch(0.78 0.025 70);
+  --text: oklch(0.22 0.020 50);
+  --text-muted: oklch(0.48 0.018 60);
+  --text-faint: oklch(0.65 0.015 65);
+  --accent: oklch(0.65 0.18 50);
+  --accent-hover: oklch(0.60 0.19 45);
+  --accent-soft: oklch(0.92 0.06 65);
+  --accent-fg: oklch(0.99 0.005 75);
+  --teal: oklch(0.58 0.12 200);
+  --teal-soft: oklch(0.92 0.05 200);
+  --success: oklch(0.58 0.13 145);
+  --success-soft: oklch(0.93 0.05 145);
+  --warn: oklch(0.65 0.16 75);
+  --danger: oklch(0.58 0.18 25);
+
+  --shadow-sm: 0 1px 2px oklch(0.30 0.04 50 / 0.06), 0 0 0 1px oklch(0.30 0.04 50 / 0.04);
+  --shadow-md: 0 2px 6px oklch(0.25 0.04 50 / 0.08), 0 1px 2px oklch(0.25 0.04 50 / 0.06);
+  --shadow-lg: 0 12px 32px oklch(0.20 0.04 50 / 0.10), 0 2px 8px oklch(0.20 0.04 50 / 0.06);
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  --font-sans: "IBM Plex Sans Thai", "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --side-w: 232px;
+}
+
+[data-theme="dark"] {
+  --bg: oklch(0.18 0.012 50);
+  --bg-elevated: oklch(0.22 0.015 50);
+  --surface: oklch(0.245 0.018 50);
+  --surface-hover: oklch(0.285 0.020 50);
+  --surface-active: oklch(0.32 0.022 50);
+  --border: oklch(0.32 0.022 50);
+  --border-strong: oklch(0.42 0.025 55);
+  --text: oklch(0.94 0.010 70);
+  --text-muted: oklch(0.68 0.014 60);
+  --text-faint: oklch(0.50 0.012 55);
+  --accent: oklch(0.74 0.17 55);
+  --accent-hover: oklch(0.80 0.18 55);
+  --accent-soft: oklch(0.32 0.08 55);
+  --accent-fg: oklch(0.16 0.02 50);
+  --teal: oklch(0.72 0.12 200);
+  --teal-soft: oklch(0.30 0.06 200);
+  --success: oklch(0.72 0.14 150);
+  --success-soft: oklch(0.30 0.06 150);
+  --warn: oklch(0.78 0.15 75);
+  --danger: oklch(0.70 0.18 25);
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.30), 0 0 0 1px oklch(0 0 0 / 0.30);
+  --shadow-md: 0 2px 8px oklch(0 0 0 / 0.35), 0 1px 2px oklch(0 0 0 / 0.30);
+  --shadow-lg: 0 16px 40px oklch(0 0 0 / 0.45), 0 2px 8px oklch(0 0 0 / 0.30);
+}
