@@ -1,11 +1,9 @@
 """tileset.py — compose cut pieces into a single tileset PNG.
 
-Usage:
-    python tileset.py <output-root> <request-json>
-
-request-json:
+Reads from stdin:
     {
-      "files": ["sheet1/sprite_r01_c01.png", ...],   # paths relative to output-root
+      "outputRoot": "<path>",
+      "files": ["sheet1/sprite_r01_c01.png", ...],
       "mode": "floor" | "wall",
       "cellSize": 64,
       "transforms": { "<file>": { "skewX":0, "skewY":0, "rotate":0, "scale":1 } }
@@ -15,13 +13,12 @@ from __future__ import annotations
 
 import json
 import math
-import sys
 from datetime import datetime
 from pathlib import Path
 
 from PIL import Image
 
-from _common import emit, fail
+from _common import emit, fail, read_input
 
 
 def fit_into_cell(img: Image.Image, cell: int) -> Image.Image:
@@ -42,8 +39,6 @@ def apply_transform(img: Image.Image, t: dict) -> Image.Image:
     scale = t.get("scale", 1) or 1
 
     if skew_x or skew_y:
-        # PIL affine: (a, b, c, d, e, f) → x' = a*x + b*y + c, y' = d*x + e*y + f
-        # We want forward skew; PIL needs inverse, so use the inverse matrix.
         det = 1 - skew_x * skew_y
         if det == 0:
             det = 1
@@ -65,14 +60,11 @@ def apply_transform(img: Image.Image, t: dict) -> Image.Image:
     return img
 
 
-def main(argv: list[str]) -> None:
-    if len(argv) < 3:
-        fail("usage: tileset.py <output-root> <request-json>")
-    output_root = Path(argv[1])
-    try:
-        req = json.loads(argv[2])
-    except json.JSONDecodeError as e:
-        fail(f"request json: {e}")
+def main() -> None:
+    req = read_input()
+    output_root = Path(req.get("outputRoot", ""))
+    if not str(output_root):
+        fail("missing 'outputRoot'")
         return
 
     files: list[str] = req.get("files", [])
@@ -138,4 +130,4 @@ def main(argv: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()

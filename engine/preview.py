@@ -1,38 +1,32 @@
 """preview.py — detect bounding boxes without writing files.
 
-Usage:
-    python preview.py <image-path> <params-json>
-
+Reads {"image","params"} from stdin. Writes PreviewResponse to stdout.
 Box ids are stable across calls as long as params do not change — they map
-1:1 to the connected-component label, so the frontend can reference them.
+1:1 to the connected-component label.
 """
 from __future__ import annotations
 
-import json
-import sys
-
-from _common import emit, fail
+from _common import emit, fail, read_input
 from _detect import bounding_box, cluster_rows, detect_components, load_rgba
 
 
-def main(argv: list[str]) -> None:
-    if len(argv) < 3:
-        fail("usage: preview.py <image-path> <params-json>")
-    try:
-        params = json.loads(argv[2])
-    except json.JSONDecodeError as e:
-        fail(f"params json: {e}")
+def main() -> None:
+    req = read_input()
+    image_path = req.get("image", "")
+    if not image_path:
+        fail("missing 'image'")
         return
 
-    try:
-        arr = load_rgba(argv[1])
-    except Exception as e:
-        fail(f"open image: {e}")
-        return
-
+    params = req.get("params", {})
     bg = int(params.get("bgThreshold", 245))
     min_size = int(params.get("minSize", 400))
     group_dilate = int(params.get("groupDilate", 2))
+
+    try:
+        arr = load_rgba(image_path)
+    except Exception as e:
+        fail(f"open image: {e}")
+        return
 
     labels, valid = detect_components(arr, bg, min_size, group_dilate)
 
@@ -49,4 +43,4 @@ def main(argv: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()

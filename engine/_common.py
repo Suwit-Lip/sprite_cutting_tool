@@ -29,3 +29,10 @@ def emit(payload: Any) -> None:
 def fail(message: str, code: int = 1) -> None:
     sys.stderr.write(f"{message}\n")
     sys.exit(code)
+
+
+def read_input() -> Any:
+    """Read a single JSON document from stdin. Used instead of argv to
+    sidestep Windows argv-encoding issues with non-ASCII characters."""
+    raw = sys.stdin.buffer.read().decode("utf-8")
+    return json.loads(raw) if raw else {}

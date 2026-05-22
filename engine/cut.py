@@ -1,10 +1,9 @@
 """cut.py — slice a sprite sheet and write the pieces under output/<sheet>/.
 
-Usage:
-    python cut.py <image-path> <output-root> <request-json>
-
-request-json:
+Reads from stdin:
     {
+      "image": "<path>",
+      "outputRoot": "<path>",
       "params": {bgThreshold, minSize, groupDilate, padding, keepShadow},
       "exclude": [box_id, ...],
       "merge":   [[box_id, box_id], ...]
@@ -14,26 +13,22 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-from _common import emit, fail
+from _common import emit, fail, read_input
 from _detect import bounding_box, cluster_rows, detect_components, load_rgba, make_alpha
 
 
-def main(argv: list[str]) -> None:
-    if len(argv) < 4:
-        fail("usage: cut.py <image-path> <output-root> <request-json>")
-    image_path = argv[1]
-    output_root = argv[2]
-    try:
-        req = json.loads(argv[3])
-    except json.JSONDecodeError as e:
-        fail(f"request json: {e}")
+def main() -> None:
+    req = read_input()
+    image_path = req.get("image", "")
+    output_root = req.get("outputRoot", "")
+    if not image_path or not output_root:
+        fail("missing 'image' or 'outputRoot'")
         return
 
     params = req.get("params", {})
@@ -55,26 +50,21 @@ def main(argv: list[str]) -> None:
     labels, valid = detect_components(arr, bg, min_size, group_dilate)
     valid_set = set(valid)
 
-    # Build the list of "logical components": each entry is a set of labels
-    # to be cropped together. Apply exclude first.
     merged_labels: set[int] = set()
     for grp in merge_groups:
         merged_labels.update(grp)
 
     components: list[dict] = []
-    # Merged groups become a single synthetic component.
     for idx, grp in enumerate(merge_groups):
         members = [m for m in grp if m in valid_set and m not in exclude]
         if not members:
             continue
         components.append({"members": members, "kind": "merged", "syn_id": -1 - idx})
-    # Single-label components for everything left.
     for lab in valid:
         if lab in exclude or lab in merged_labels:
             continue
         components.append({"members": [lab], "kind": "single", "syn_id": int(lab)})
 
-    # Compute bounding boxes for each component.
     boxes: list[dict] = []
     height, width = labels.shape
     for c in components:
@@ -117,7 +107,6 @@ def main(argv: list[str]) -> None:
         sub_rgb = arr[py0:py1, px0:px1, :3]
         sub_label = labels[py0:py1, px0:px1]
 
-        # Build a mask restricted to this component (and merged members).
         comp_mask = np.zeros(sub_label.shape, dtype=bool)
         for lab in box["members"]:
             comp_mask |= sub_label == lab
@@ -165,4 +154,4 @@ def main(argv: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()

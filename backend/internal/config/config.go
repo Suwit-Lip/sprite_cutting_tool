@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -24,6 +26,13 @@ type Config struct {
 	MaxUploadMB int
 
 	LLM LLMConfig
+}
+
+type LLMConfig struct {
+	Provider      string // "gemini" | "openai"
+	APIKey        string
+	Model         string
+	DefaultPrompt string
 }
 
 func (c *Config) InputDir() string {
@@ -50,14 +59,15 @@ func (c *Config) SetOutputDir(p string) {
 	c.outputDir = filepath.Clean(p)
 }
 
-type LLMConfig struct {
-	Provider      string // "openai" | "gemini"
-	APIKey        string
-	Model         string
-	DefaultPrompt string
-}
-
 func Load() (*Config, error) {
+	// .env is optional — env vars set in the actual environment take priority.
+	loadDotenv()
+
+	provider := getenv("LLM_PROVIDER", "gemini")
+	apiKey := pickAPIKey(provider)
+	model := getenv("LLM_MODEL", defaultModel(provider))
+	defaultPrompt := resolveDefaultPrompt()
+
 	cfg := &Config{
 		Port:        getenv("PORT", "8080"),
 		inputDir:    filepath.Clean(getenv("INPUT_DIR", `D:\Game Asset\input`)),
@@ -68,10 +78,10 @@ func Load() (*Config, error) {
 		EngineDir:   resolveEngineDir(),
 		MaxUploadMB: getenvInt("MAX_UPLOAD_MB", 50),
 		LLM: LLMConfig{
-			Provider:      getenv("LLM_PROVIDER", "gemini"),
-			APIKey:        os.Getenv("LLM_API_KEY"),
-			Model:         getenv("LLM_MODEL", "gemini-2.5-flash"),
-			DefaultPrompt: os.Getenv("LLM_DEFAULT_PROMPT"),
+			Provider:      provider,
+			APIKey:        apiKey,
+			Model:         model,
+			DefaultPrompt: defaultPrompt,
 		},
 	}
 
@@ -83,6 +93,44 @@ func Load() (*Config, error) {
 
 func (c *Config) MaxUploadBytes() int {
 	return c.MaxUploadMB * 1024 * 1024
+}
+
+// pickAPIKey returns the provider-specific key, falling back to LLM_API_KEY
+// for backward compat. Supports having both keys configured simultaneously.
+func pickAPIKey(provider string) string {
+	switch provider {
+	case "gemini":
+		if v := os.Getenv("GEMINI_API_KEY"); v != "" {
+			return v
+		}
+	case "openai":
+		if v := os.Getenv("OPENAI_API_KEY"); v != "" {
+			return v
+		}
+	}
+	return os.Getenv("LLM_API_KEY")
+}
+
+func defaultModel(provider string) string {
+	switch provider {
+	case "openai":
+		return "gpt-4.1-nano"
+	default:
+		return "gemini-2.5-flash"
+	}
+}
+
+// resolveDefaultPrompt: prefer file content (LLM_DEFAULT_PROMPT_FILE) over
+// the inline env var (LLM_DEFAULT_PROMPT). Env files don't handle long
+// multi-line strings well — point at a file instead.
+func resolveDefaultPrompt() string {
+	if path := os.Getenv("LLM_DEFAULT_PROMPT_FILE"); path != "" {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			return string(data)
+		}
+	}
+	return os.Getenv("LLM_DEFAULT_PROMPT")
 }
 
 func getenv(key, fallback string) string {
@@ -111,8 +159,28 @@ func defaultPython() string {
 	return "python"
 }
 
+// loadDotenv searches the cwd and each parent directory for a .env file.
+// This makes `go run ./cmd/server` work regardless of where the user invoked it.
+func loadDotenv() {
+	wd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	for i := 0; i < 5; i++ {
+		candidate := filepath.Join(wd, ".env")
+		if _, err := os.Stat(candidate); err == nil {
+			_ = godotenv.Load(candidate)
+			return
+		}
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			return
+		}
+		wd = parent
+	}
+}
+
 func resolveEngineDir() string {
-	// Prefer ./engine relative to the binary; fall back to cwd/engine.
 	exe, err := os.Executable()
 	if err == nil {
 		candidate := filepath.Join(filepath.Dir(exe), "engine")

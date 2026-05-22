@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -28,7 +27,7 @@ func (h *cutHandler) analyze(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
 	var resp models.AnalyzeResponse
-	if err := h.d.Python.Run(ctx, "analyze.py", []string{imgPath}, &resp); err != nil {
+	if err := h.d.Python.Run(ctx, "analyze.py", map[string]any{"image": imgPath}, &resp); err != nil {
 		return fmt.Errorf("analyze: %w", err)
 	}
 	return c.JSON(resp)
@@ -43,14 +42,13 @@ func (h *cutHandler) preview(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	paramsJSON, err := json.Marshal(body.Params)
-	if err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
 	var resp models.PreviewResponse
-	if err := h.d.Python.Run(ctx, "preview.py", []string{imgPath, string(paramsJSON)}, &resp); err != nil {
+	if err := h.d.Python.Run(ctx, "preview.py", map[string]any{
+		"image":  imgPath,
+		"params": body.Params,
+	}, &resp); err != nil {
 		return fmt.Errorf("preview: %w", err)
 	}
 	return c.JSON(resp)
@@ -69,18 +67,16 @@ func (h *cutHandler) execute(c *fiber.Ctx) error {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return fmt.Errorf("ensure output dir: %w", err)
 	}
-	reqBlob, err := json.Marshal(struct {
-		Params  models.CutParams `json:"params"`
-		Exclude []int            `json:"exclude"`
-		Merge   [][]int          `json:"merge"`
-	}{body.Params, body.Exclude, body.Merge})
-	if err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Minute)
 	defer cancel()
 	var resp models.CutResponse
-	if err := h.d.Python.Run(ctx, "cut.py", []string{imgPath, outDir, string(reqBlob)}, &resp); err != nil {
+	if err := h.d.Python.Run(ctx, "cut.py", map[string]any{
+		"image":      imgPath,
+		"outputRoot": outDir,
+		"params":     body.Params,
+		"exclude":    body.Exclude,
+		"merge":      body.Merge,
+	}, &resp); err != nil {
 		return fmt.Errorf("cut: %w", err)
 	}
 	return c.JSON(resp)

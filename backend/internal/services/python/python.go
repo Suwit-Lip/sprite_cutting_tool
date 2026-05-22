@@ -1,7 +1,9 @@
 // Package python invokes the Python engine scripts as subprocesses.
 //
 // Contract with each script:
-//   - args: positional path to the input image + a JSON blob with options.
+//   - args: just the script path; no positional args.
+//   - stdin: a single JSON document with all inputs. Using stdin instead of
+//     argv avoids Windows argv-encoding issues with non-ASCII paths.
 //   - stdout: a single JSON document. The Go side unmarshals it into the
 //     caller-supplied target.
 //   - stderr: free-form log lines (passed through to slog on failure).
@@ -14,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -27,12 +30,21 @@ func New(bin, engineDir string) *Runner {
 	return &Runner{bin: bin, engineDir: engineDir}
 }
 
-// Run executes engineDir/<script> with the given args, JSON-decodes stdout into out.
-func (r *Runner) Run(ctx context.Context, script string, args []string, out any) error {
+// Run executes engineDir/<script>, piping input as JSON on stdin and decoding
+// the script's stdout JSON into out.
+func (r *Runner) Run(ctx context.Context, script string, input, out any) error {
 	scriptPath := filepath.Join(r.engineDir, script)
 
-	cmdArgs := append([]string{scriptPath}, args...)
-	cmd := exec.CommandContext(ctx, r.bin, cmdArgs...)
+	cmd := exec.CommandContext(ctx, r.bin, scriptPath)
+	cmd.Env = append(os.Environ(), "PYTHONUTF8=1", "PYTHONIOENCODING=utf-8")
+
+	if input != nil {
+		payload, err := json.Marshal(input)
+		if err != nil {
+			return fmt.Errorf("%s: encode stdin: %w", script, err)
+		}
+		cmd.Stdin = bytes.NewReader(payload)
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -43,7 +55,7 @@ func (r *Runner) Run(ctx context.Context, script string, args []string, out any)
 			"script", script,
 			"stderr", stderr.String(),
 			"err", err)
-		return fmt.Errorf("%s: %w", script, err)
+		return fmt.Errorf("%s: %s: %w", script, stderr.String(), err)
 	}
 
 	if out == nil {

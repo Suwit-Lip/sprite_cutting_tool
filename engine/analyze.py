@@ -1,16 +1,13 @@
 """analyze.py — inspect a sprite sheet and suggest cut parameters.
 
-Usage:
-    python analyze.py <image-path>
+Reads {"image": "<path>"} from stdin. Writes AnalyzeResponse JSON to stdout.
 """
 from __future__ import annotations
-
-import sys
 
 import numpy as np
 from scipy import ndimage
 
-from _common import emit, fail
+from _common import emit, fail, read_input
 from _detect import load_rgba
 
 
@@ -80,11 +77,14 @@ def auto_suggest(arr: np.ndarray, bg: int = 245) -> dict:
     }
 
 
-def main(argv: list[str]) -> None:
-    if len(argv) < 2:
-        fail("usage: analyze.py <image-path>")
+def main() -> None:
+    req = read_input()
+    image_path = req.get("image", "")
+    if not image_path:
+        fail("missing 'image'")
+        return
     try:
-        arr = load_rgba(argv[1])
+        arr = load_rgba(image_path)
     except Exception as e:
         fail(f"open image: {e}")
         return
@@ -92,4 +92,4 @@ def main(argv: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()

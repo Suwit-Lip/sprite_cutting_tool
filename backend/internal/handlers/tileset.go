@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -30,10 +29,6 @@ func (h *tilesetHandler) create(c *fiber.Ctx) error {
 	if body.Mode == "" {
 		body.Mode = "floor"
 	}
-	reqBlob, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Minute)
 	defer cancel()
 	var resp struct {
@@ -41,7 +36,13 @@ func (h *tilesetHandler) create(c *fiber.Ctx) error {
 		URL  string `json:"url"`
 		Meta string `json:"meta"`
 	}
-	if err := h.d.Python.Run(ctx, "tileset.py", []string{h.d.Config.OutputDir(), string(reqBlob)}, &resp); err != nil {
+	if err := h.d.Python.Run(ctx, "tileset.py", map[string]any{
+		"outputRoot": h.d.Config.OutputDir(),
+		"files":      body.Files,
+		"mode":       body.Mode,
+		"cellSize":   body.CellSize,
+		"transforms": body.Transforms,
+	}, &resp); err != nil {
 		return fmt.Errorf("tileset: %w", err)
 	}
 	return c.JSON(resp)
