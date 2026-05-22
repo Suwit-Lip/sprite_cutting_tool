@@ -42,7 +42,7 @@ type openaiResp struct {
 
 func (c *openaiClient) Generate(ctx context.Context, prompt string) (string, error) {
 	if c.cfg.APIKey == "" {
-		return "", errors.New("LLM_API_KEY not set")
+		return "", errors.New("OpenAI API key not set — set OPENAI_API_KEY in .env (next to the binary or in the project root)")
 	}
 	model := c.cfg.Model
 	if model == "" {

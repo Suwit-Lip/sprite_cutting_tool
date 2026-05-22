@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -61,12 +62,25 @@ func (c *Config) SetOutputDir(p string) {
 
 func Load() (*Config, error) {
 	// .env is optional — env vars set in the actual environment take priority.
-	loadDotenv()
+	envPath := loadDotenv()
+	if envPath != "" {
+		slog.Info("loaded env file", "path", envPath)
+	} else {
+		slog.Warn("no .env file found",
+			"hint", "create one from .env.example next to the binary or in the project root")
+	}
 
 	provider := getenv("LLM_PROVIDER", "gemini")
 	apiKey := pickAPIKey(provider)
 	model := getenv("LLM_MODEL", defaultModel(provider))
 	defaultPrompt := resolveDefaultPrompt()
+
+	slog.Info("llm configured",
+		"provider", provider,
+		"model", model,
+		"has_key", apiKey != "",
+		"default_prompt_len", len(defaultPrompt),
+	)
 
 	cfg := &Config{
 		Port:        getenv("PORT", "8080"),
@@ -159,25 +173,33 @@ func defaultPython() string {
 	return "python"
 }
 
-// loadDotenv searches the cwd and each parent directory for a .env file.
-// This makes `go run ./cmd/server` work regardless of where the user invoked it.
-func loadDotenv() {
-	wd, err := os.Getwd()
-	if err != nil {
-		return
+// loadDotenv searches the binary's directory and the cwd (plus parents) for
+// a .env file. This makes the binary work both when launched from any folder
+// and when invoked via `go run` during dev. Returns the path that was loaded,
+// or "" if none.
+func loadDotenv() string {
+	candidates := []string{}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), ".env"))
 	}
-	for i := 0; i < 5; i++ {
-		candidate := filepath.Join(wd, ".env")
-		if _, err := os.Stat(candidate); err == nil {
-			_ = godotenv.Load(candidate)
-			return
+	if wd, err := os.Getwd(); err == nil {
+		for i := 0; i < 5; i++ {
+			candidates = append(candidates, filepath.Join(wd, ".env"))
+			parent := filepath.Dir(wd)
+			if parent == wd {
+				break
+			}
+			wd = parent
 		}
-		parent := filepath.Dir(wd)
-		if parent == wd {
-			return
-		}
-		wd = parent
 	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			if err := godotenv.Load(c); err == nil {
+				return c
+			}
+		}
+	}
+	return ""
 }
 
 func resolveEngineDir() string {

@@ -46,7 +46,7 @@ type geminiResp struct {
 
 func (c *geminiClient) Generate(ctx context.Context, prompt string) (string, error) {
 	if c.cfg.APIKey == "" {
-		return "", errors.New("LLM_API_KEY not set")
+		return "", errors.New("Gemini API key not set — set GEMINI_API_KEY in .env (next to the binary or in the project root)")
 	}
 	model := c.cfg.Model
 	if model == "" {
