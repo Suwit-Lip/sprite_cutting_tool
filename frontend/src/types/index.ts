@@ -1,11 +1,14 @@
 // Mirror of backend/internal/models/types.go. Keep in sync.
 
+export type AlphaMode = 'remove' | 'keep' | 'fuzzy'
+
 export interface CutParams {
   bgThreshold: number
   minSize: number
   groupDilate: number
   padding: number
   keepShadow: boolean
+  alphaMode: AlphaMode
 }
 
 export interface Box {

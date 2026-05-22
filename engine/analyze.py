@@ -70,6 +70,7 @@ def auto_suggest(arr: np.ndarray, bg: int = 245) -> dict:
             "groupDilate": group_dilate,
             "padding": 4,
             "keepShadow": True,
+            "alphaMode": "remove",
         },
         "profile": profile,
         "note": note,

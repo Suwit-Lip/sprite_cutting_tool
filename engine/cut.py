@@ -20,7 +20,14 @@ from PIL import Image
 from scipy import ndimage
 
 from _common import emit, fail, read_input
-from _detect import bounding_box, cluster_rows, detect_components, load_rgba, make_alpha
+from _detect import (
+    bounding_box,
+    cluster_rows,
+    detect_components,
+    load_rgba,
+    make_alpha,
+    make_alpha_from_mask,
+)
 
 
 def main() -> None:
@@ -37,6 +44,7 @@ def main() -> None:
     group_dilate = int(params.get("groupDilate", 2))
     padding = int(params.get("padding", 4))
     keep_shadow = bool(params.get("keepShadow", True))
+    alpha_mode = str(params.get("alphaMode", "remove"))
 
     exclude = set(int(i) for i in req.get("exclude", []))
     merge_groups = [[int(i) for i in g] for g in req.get("merge", []) if len(g) >= 2]
@@ -112,8 +120,14 @@ def main() -> None:
             comp_mask |= sub_label == lab
         comp_mask = ndimage.binary_dilation(comp_mask, iterations=2)
 
-        alpha = make_alpha(sub_rgb, bg, keep_shadow)
-        alpha[~comp_mask] = 0
+        if alpha_mode in ("keep", "fuzzy"):
+            # Use the (filled) component mask as alpha. Preserves bright/white
+            # pixels that fall inside the object's outline.
+            alpha = make_alpha_from_mask(comp_mask, alpha_mode)
+        else:
+            # "remove": per-pixel brightness test, clipped to the component.
+            alpha = make_alpha(sub_rgb, bg, keep_shadow)
+            alpha[~comp_mask] = 0
 
         out = np.zeros((sub_rgb.shape[0], sub_rgb.shape[1], 4), dtype=np.uint8)
         out[:, :, :3] = sub_rgb.astype(np.uint8)

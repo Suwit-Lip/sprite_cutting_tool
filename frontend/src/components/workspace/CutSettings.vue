@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useToastStore } from '@/stores/toast'
-import type { AnalyzeResponse, CutParams, Preset } from '@/types'
+import type { AlphaMode, AnalyzeResponse, CutParams, Preset } from '@/types'
 
 const props = defineProps<{
   params: CutParams
@@ -28,7 +28,7 @@ onMounted(() => presets.refresh())
 const allPresets = computed<Preset[]>(() => [...presets.builtins, ...presets.user])
 const activePreset = computed(() => allPresets.value.find((p) => presets.paramsMatch(p.params, props.params)))
 
-function patch(key: keyof CutParams, v: number | boolean) {
+function patch(key: keyof CutParams, v: number | boolean | AlphaMode) {
   emit('update:params', { ...props.params, [key]: v })
 }
 
@@ -184,14 +184,34 @@ async function savePreset() {
 
       <!-- Background -->
       <div class="section-label mb-2 mt-5">Background</div>
+
+      <div class="mb-2 text-[12px] text-text-muted">Alpha mode</div>
+      <div class="mb-1 flex items-center gap-1 rounded-md border border-border bg-surface p-0.5">
+        <button
+          v-for="m in (['remove', 'keep', 'fuzzy'] as const)"
+          :key="m"
+          class="flex-1 rounded-sm py-1 text-[11px] capitalize transition-colors"
+          :class="params.alphaMode === m ? 'bg-bg-elevated shadow-sm' : 'text-text-muted'"
+          @click="patch('alphaMode', m)"
+        >
+          {{ m }}
+        </button>
+      </div>
+      <div class="mb-3 text-[11px] text-text-faint">
+        <template v-if="params.alphaMode === 'remove'">กิน pixel สว่างทุก pixel — ดีสำหรับ icon เข้มบนพื้นขาว</template>
+        <template v-else-if="params.alphaMode === 'keep'">ใช้ outline ของวัตถุเป็น alpha — เก็บสีขาวที่อยู่ภายในไว้</template>
+        <template v-else>เหมือน Keep แต่ขอบนุ่ม fade ออก ~2.5 px</template>
+      </div>
+
       <label class="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2">
         <div>
           <div class="text-[13px]">Keep shadows</div>
-          <div class="text-[11px] text-text-faint">เก็บเงาใต้วัตถุไว้ในผลลัพธ์</div>
+          <div class="text-[11px] text-text-faint">เก็บเงาใต้วัตถุไว้ (เฉพาะ Remove mode)</div>
         </div>
         <input
           type="checkbox"
           :checked="params.keepShadow"
+          :disabled="params.alphaMode !== 'remove'"
           @change="(e) => patch('keepShadow', (e.target as HTMLInputElement).checked)"
         />
       </label>

@@ -1,11 +1,12 @@
 package models
 
 type CutParams struct {
-	BgThreshold int  `json:"bgThreshold"`
-	MinSize     int  `json:"minSize"`
-	GroupDilate int  `json:"groupDilate"`
-	Padding     int  `json:"padding"`
-	KeepShadow  bool `json:"keepShadow"`
+	BgThreshold int    `json:"bgThreshold"`
+	MinSize     int    `json:"minSize"`
+	GroupDilate int    `json:"groupDilate"`
+	Padding     int    `json:"padding"`
+	KeepShadow  bool   `json:"keepShadow"`
+	AlphaMode   string `json:"alphaMode"` // "remove" | "keep" | "fuzzy"
 }
 
 type Box struct {

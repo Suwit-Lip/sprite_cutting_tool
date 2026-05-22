@@ -8,6 +8,7 @@ const DEFAULT_PARAMS: CutParams = {
   groupDilate: 2,
   padding: 4,
   keepShadow: true,
+  alphaMode: 'remove',
 }
 
 export const useCutStore = defineStore('cut', () => {

@@ -46,6 +46,7 @@ def bounding_box(labels: np.ndarray, lab: int) -> tuple[int, int, int, int]:
 def make_alpha(
     sub_rgb: np.ndarray, bg_threshold: int, keep_shadow: bool
 ) -> np.ndarray:
+    """Per-pixel alpha based on brightness. Used by alphaMode='remove'."""
     bri = sub_rgb.mean(axis=2)
     alpha = np.full(bri.shape, 255, dtype=np.uint8)
     alpha[bri >= bg_threshold] = 0
@@ -54,6 +55,24 @@ def make_alpha(
         shadow = (bri >= 200) & (bri < bg_threshold) & (sat < 25)
         alpha[shadow] = 0
     return alpha
+
+
+def make_alpha_from_mask(
+    comp_mask: np.ndarray, mode: str
+) -> np.ndarray:
+    """Alpha derived from the component mask itself, with holes filled.
+    Used by alphaMode='keep' and 'fuzzy'. Solves the bright-interior case
+    where the object has white/light pixels inside its outline."""
+    filled = ndimage.binary_fill_holes(comp_mask)
+    if filled is None:
+        filled = comp_mask
+    if mode == "fuzzy":
+        # Soft edge: distance from outside → smooth alpha ramp over a few px.
+        dist = ndimage.distance_transform_edt(filled)
+        ramp = np.clip(dist / 2.5, 0, 1)  # ~2.5 px fade
+        return (ramp * 255).astype(np.uint8)
+    # keep: hard mask
+    return np.where(filled, 255, 0).astype(np.uint8)
 
 
 def cluster_rows(

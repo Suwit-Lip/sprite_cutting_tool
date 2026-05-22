@@ -19,6 +19,7 @@ const DEFAULT_PARAMS: CutParams = {
   groupDilate: 2,
   padding: 4,
   keepShadow: true,
+  alphaMode: 'remove',
 }
 
 const params = ref<CutParams>({ ...DEFAULT_PARAMS })
