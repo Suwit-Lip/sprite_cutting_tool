@@ -11,35 +11,76 @@ from _common import emit, fail, read_input
 from _detect import load_rgba
 
 
-def auto_suggest(arr: np.ndarray, bg: int = 245) -> dict:
+def _sample_bg_threshold(arr: np.ndarray) -> int:
+    """Pick a bgThreshold from the brightest band in the image corners.
+
+    Most sprite sheets have a (mostly) uniform background fill at the corners.
+    We sample those corners, find the typical brightness, then set threshold
+    slightly below it so the background gets masked out without eating the
+    object edges.
+    """
+    h, w = arr.shape[:2]
+    cs = max(8, min(h, w) // 20)  # corner size
+    corners = np.concatenate(
+        [
+            arr[:cs, :cs, :3].reshape(-1, 3),
+            arr[:cs, -cs:, :3].reshape(-1, 3),
+            arr[-cs:, :cs, :3].reshape(-1, 3),
+            arr[-cs:, -cs:, :3].reshape(-1, 3),
+        ]
+    )
+    bri = corners.mean(axis=1)
+    # 10th percentile of corner brightness — robust against the darkest
+    # speck in the texture but lower than the pure-white peak.
+    cutoff = int(np.percentile(bri, 10))
+    # Keep within a sane range; never go below 200 (otherwise we'd cut
+    # large parts of light-colored objects).
+    return max(200, min(254, cutoff - 1))
+
+
+def auto_suggest(arr: np.ndarray) -> dict:
+    bg = _sample_bg_threshold(arr)
     bri = arr[:, :, :3].astype(float).mean(axis=2)
     mask = bri < bg
     mask = ndimage.binary_opening(mask, structure=np.ones((2, 2)))
     labels, n = ndimage.label(mask)
     if n == 0:
-        return {
-            "suggested": {
-                "bgThreshold": bg,
-                "minSize": 400,
-                "groupDilate": 2,
-                "padding": 4,
-                "keepShadow": True,
-            },
-            "profile": "normal",
-            "note": "ไม่พบวัตถุ — ตรวจ background หรือลด threshold",
-            "mixedSizeWarning": False,
-        }
-    sizes = ndimage.sum(np.ones_like(labels), labels, range(1, n + 1))
-    sizes = sizes[sizes >= 50]
-    if sizes.size == 0:
-        median = 400.0
-        ratio = 1.0
-    else:
-        median = float(np.median(sizes))
-        ratio = float(sizes.max() / max(median, 1))
+        return _defaults(bg, "normal", "ไม่พบวัตถุ — ตรวจ background หรือลด threshold")
 
-    s0 = ndimage.sum(np.ones_like(labels), labels, range(1, n + 1))
-    c0 = int((s0 >= 200).sum())
+    sizes_all = ndimage.sum(np.ones_like(labels), labels, range(1, n + 1))
+    sizes = sizes_all[sizes_all >= 50]
+    if sizes.size == 0:
+        return _defaults(bg, "normal", "พบแต่ noise — ลอง bg threshold อื่น")
+
+    median = float(np.median(sizes))
+    largest = float(sizes.max())
+    ratio = largest / max(median, 1)
+
+    # Few-large-objects pattern (tarot cards, tiles, big illustrations).
+    # Cue: the top 3 components own most of the foreground area.
+    sorted_sizes = np.sort(sizes)[::-1]
+    if len(sorted_sizes) >= 3:
+        top3_sum = float(sorted_sizes[:3].sum())
+        total = float(sorted_sizes.sum())
+        if top3_sum / total > 0.6 and largest > 5000:
+            third = float(sorted_sizes[2])
+            return {
+                "suggested": {
+                    "bgThreshold": bg,
+                    "minSize": max(500, int(third * 0.4)),
+                    "groupDilate": 0,
+                    "padding": 6,
+                    "keepShadow": False,
+                    "alphaMode": "keep",
+                    "noiseReduction": 3,
+                },
+                "profile": "large_objects",
+                "note": "ภาพมีวัตถุใหญ่ไม่กี่ชิ้น — กรอง noise สูง, ไม่รวมชิ้น, ใช้ Keep alpha",
+                "mixedSizeWarning": False,
+            }
+
+    # merge_rate: how much dilation collapses the component count.
+    c0 = int((sizes_all >= 200).sum())
     mask3 = ndimage.binary_dilation(mask, iterations=3)
     l3, n3 = ndimage.label(mask3)
     if n3 > 0:
@@ -71,10 +112,28 @@ def auto_suggest(arr: np.ndarray, bg: int = 245) -> dict:
             "padding": 4,
             "keepShadow": True,
             "alphaMode": "remove",
+            "noiseReduction": 2,
         },
         "profile": profile,
         "note": note,
         "mixedSizeWarning": mixed,
+    }
+
+
+def _defaults(bg: int, profile: str, note: str) -> dict:
+    return {
+        "suggested": {
+            "bgThreshold": bg,
+            "minSize": 400,
+            "groupDilate": 2,
+            "padding": 4,
+            "keepShadow": True,
+            "alphaMode": "remove",
+            "noiseReduction": 2,
+        },
+        "profile": profile,
+        "note": note,
+        "mixedSizeWarning": False,
     }
 
 

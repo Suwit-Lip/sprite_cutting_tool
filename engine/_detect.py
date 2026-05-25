@@ -18,11 +18,15 @@ def detect_components(
     bg_threshold: int,
     min_size: int,
     group_dilate: int,
+    noise_reduction: int = 2,
 ) -> tuple[np.ndarray, list[int]]:
     rgb = arr[:, :, :3].astype(float)
     brightness = rgb.mean(axis=2)
     mask = brightness < bg_threshold
-    mask = ndimage.binary_opening(mask, structure=np.ones((2, 2)))
+    # binary_opening with a larger structure kills more noise (paper texture,
+    # JPEG artifacts) at the cost of eroding thin features.
+    k = max(1, int(noise_reduction))
+    mask = ndimage.binary_opening(mask, structure=np.ones((k, k)))
     if group_dilate > 0:
         mask = ndimage.binary_dilation(mask, iterations=group_dilate)
     labels, n = ndimage.label(mask)

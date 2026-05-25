@@ -4,10 +4,11 @@ import { presetApi } from '@/api'
 import type { CutParams, Preset } from '@/types'
 
 const BUILTINS: Preset[] = [
-  { id: '__icons', name: 'Icons แน่น', params: { bgThreshold: 248, minSize: 16, groupDilate: 2, padding: 4, keepShadow: true, alphaMode: 'remove' } },
-  { id: '__items', name: 'Items ห่าง', params: { bgThreshold: 240, minSize: 32, groupDilate: 4, padding: 8, keepShadow: true, alphaMode: 'remove' } },
-  { id: '__objects', name: 'Objects ใหญ่', params: { bgThreshold: 235, minSize: 80, groupDilate: 8, padding: 12, keepShadow: true, alphaMode: 'keep' } },
-  { id: '__soft', name: 'พื้นหลังนวลๆ', params: { bgThreshold: 220, minSize: 24, groupDilate: 6, padding: 6, keepShadow: false, alphaMode: 'fuzzy' } },
+  { id: '__icons', name: 'Icons แน่น', params: { bgThreshold: 248, minSize: 16, groupDilate: 2, padding: 4, keepShadow: true, alphaMode: 'remove', noiseReduction: 2 } },
+  { id: '__items', name: 'Items ห่าง', params: { bgThreshold: 240, minSize: 32, groupDilate: 4, padding: 8, keepShadow: true, alphaMode: 'remove', noiseReduction: 2 } },
+  { id: '__cards', name: 'Cards / Tiles', params: { bgThreshold: 250, minSize: 5000, groupDilate: 0, padding: 6, keepShadow: false, alphaMode: 'keep', noiseReduction: 3 } },
+  { id: '__objects', name: 'Objects ใหญ่', params: { bgThreshold: 235, minSize: 80, groupDilate: 8, padding: 12, keepShadow: true, alphaMode: 'keep', noiseReduction: 2 } },
+  { id: '__soft', name: 'พื้นหลังนวลๆ', params: { bgThreshold: 220, minSize: 24, groupDilate: 6, padding: 6, keepShadow: false, alphaMode: 'fuzzy', noiseReduction: 3 } },
 ]
 
 export const usePresetsStore = defineStore('presets', () => {
@@ -31,7 +32,8 @@ export const usePresetsStore = defineStore('presets', () => {
       a.minSize === b.minSize &&
       a.groupDilate === b.groupDilate &&
       a.padding === b.padding &&
-      a.alphaMode === b.alphaMode
+      a.alphaMode === b.alphaMode &&
+      a.noiseReduction === b.noiseReduction
     )
   }
 

@@ -150,6 +150,19 @@ async function savePreset() {
             @input="(e) => patch('padding', Number((e.target as HTMLInputElement).value))"
           />
         </div>
+        <div>
+          <div class="flex items-center justify-between">
+            <label class="text-[13px]">Noise reduction</label>
+            <span class="rounded-sm border border-border bg-surface px-1.5 py-0.5 font-mono text-[12px]">{{ params.noiseReduction }}</span>
+          </div>
+          <div class="text-[11px] text-text-faint">เพิ่ม = กิน texture/specks ได้มากขึ้น (เสี่ยงสูญเส้นบางๆ)</div>
+          <input
+            class="slider mt-1.5"
+            type="range" min="1" max="5" step="1"
+            :value="params.noiseReduction"
+            @input="(e) => patch('noiseReduction', Number((e.target as HTMLInputElement).value))"
+          />
+        </div>
       </div>
 
       <!-- Presets -->

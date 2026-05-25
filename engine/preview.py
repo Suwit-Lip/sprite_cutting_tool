@@ -21,6 +21,7 @@ def main() -> None:
     bg = int(params.get("bgThreshold", 245))
     min_size = int(params.get("minSize", 400))
     group_dilate = int(params.get("groupDilate", 2))
+    noise_reduction = int(params.get("noiseReduction", 2))
 
     try:
         arr = load_rgba(image_path)
@@ -28,7 +29,7 @@ def main() -> None:
         fail(f"open image: {e}")
         return
 
-    labels, valid = detect_components(arr, bg, min_size, group_dilate)
+    labels, valid = detect_components(arr, bg, min_size, group_dilate, noise_reduction)
 
     boxes: list[dict] = []
     for lab in valid:

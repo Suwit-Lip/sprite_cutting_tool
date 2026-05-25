@@ -45,6 +45,7 @@ def main() -> None:
     padding = int(params.get("padding", 4))
     keep_shadow = bool(params.get("keepShadow", True))
     alpha_mode = str(params.get("alphaMode", "remove"))
+    noise_reduction = int(params.get("noiseReduction", 2))
 
     exclude = set(int(i) for i in req.get("exclude", []))
     merge_groups = [[int(i) for i in g] for g in req.get("merge", []) if len(g) >= 2]
@@ -55,7 +56,7 @@ def main() -> None:
         fail(f"open image: {e}")
         return
 
-    labels, valid = detect_components(arr, bg, min_size, group_dilate)
+    labels, valid = detect_components(arr, bg, min_size, group_dilate, noise_reduction)
     valid_set = set(valid)
 
     merged_labels: set[int] = set()

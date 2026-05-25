@@ -9,6 +9,7 @@ export interface CutParams {
   padding: number
   keepShadow: boolean
   alphaMode: AlphaMode
+  noiseReduction: number
 }
 
 export interface Box {
