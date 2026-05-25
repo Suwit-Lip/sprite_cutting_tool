@@ -76,6 +76,7 @@ func (h *cutHandler) execute(c *fiber.Ctx) error {
 		"params":     body.Params,
 		"exclude":    body.Exclude,
 		"merge":      body.Merge,
+		"splits":     body.Splits,
 	}, &resp); err != nil {
 		return fmt.Errorf("cut: %w", err)
 	}

@@ -2,6 +2,15 @@
 
 export type AlphaMode = 'remove' | 'keep' | 'fuzzy'
 
+export interface Rect { x: number; y: number; w: number; h: number }
+
+// Sent to backend with /api/cut/execute. Each entry overrides one detected
+// component's single bbox with N sub-rects — each becomes its own output.
+export interface SplitEntry {
+  members: number[]  // sorted label ids of the source component (or merged group)
+  rects: Rect[]
+}
+
 export interface CutParams {
   bgThreshold: number
   minSize: number

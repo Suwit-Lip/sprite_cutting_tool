@@ -4,10 +4,18 @@ Reads from stdin:
     {
       "image": "<path>",
       "outputRoot": "<path>",
-      "params": {bgThreshold, minSize, groupDilate, padding, keepShadow},
+      "params": {bgThreshold, minSize, groupDilate, padding, keepShadow,
+                 alphaMode, noiseReduction},
       "exclude": [box_id, ...],
-      "merge":   [[box_id, box_id], ...]
+      "merge":   [[box_id, box_id], ...],
+      "splits":  [{"members": [box_id, ...], "rects": [{x,y,w,h}, ...]}, ...]
     }
+
+splits override the per-component bounding box: any component whose member
+set matches "members" gets its single bbox replaced by the listed rects,
+each saved as its own output PNG. Useful when one detection covers multiple
+visually-distinct objects (e.g. cards merged by a shadow line) — the user
+manually splits it into N pieces in the UI.
 """
 from __future__ import annotations
 
@@ -30,6 +38,10 @@ from _detect import (
 )
 
 
+def _members_key(members: list[int]) -> tuple[int, ...]:
+    return tuple(sorted(int(m) for m in members))
+
+
 def main() -> None:
     req = read_input()
     image_path = req.get("image", "")
@@ -49,6 +61,12 @@ def main() -> None:
 
     exclude = set(int(i) for i in req.get("exclude", []))
     merge_groups = [[int(i) for i in g] for g in req.get("merge", []) if len(g) >= 2]
+    splits_map: dict[tuple[int, ...], list[dict]] = {}
+    for s in req.get("splits", []):
+        key = _members_key(s.get("members", []))
+        rects = s.get("rects", [])
+        if rects:
+            splits_map[key] = rects
 
     try:
         arr = load_rgba(image_path)
@@ -63,20 +81,41 @@ def main() -> None:
     for grp in merge_groups:
         merged_labels.update(grp)
 
+    # Build logical components (merged groups + remaining singles).
     components: list[dict] = []
     for idx, grp in enumerate(merge_groups):
         members = [m for m in grp if m in valid_set and m not in exclude]
         if not members:
             continue
-        components.append({"members": members, "kind": "merged", "syn_id": -1 - idx})
+        components.append({"members": members, "syn_id": -1 - idx})
     for lab in valid:
         if lab in exclude or lab in merged_labels:
             continue
-        components.append({"members": [lab], "kind": "single", "syn_id": int(lab)})
+        components.append({"members": [lab], "syn_id": int(lab)})
 
-    boxes: list[dict] = []
     height, width = labels.shape
+
+    # Expand each component into "pieces": one piece per output PNG.
+    # Default = single piece using component's bounding box; if the
+    # component has split entries, emit one piece per split rect.
+    pieces: list[dict] = []
     for c in components:
+        key = _members_key(c["members"])
+        rects = splits_map.get(key)
+        if rects:
+            for r in rects:
+                pieces.append(
+                    {
+                        "id": c["syn_id"],
+                        "members": c["members"],
+                        "x": int(r["x"]),
+                        "y": int(r["y"]),
+                        "w": int(r["w"]),
+                        "h": int(r["h"]),
+                    }
+                )
+            continue
+
         x0 = y0 = 10**9
         x1 = y1 = -1
         for lab in c["members"]:
@@ -87,7 +126,7 @@ def main() -> None:
             x1, y1 = max(x1, bx + bw), max(y1, by + bh)
         if x1 < 0:
             continue
-        boxes.append(
+        pieces.append(
             {
                 "id": c["syn_id"],
                 "members": c["members"],
@@ -98,7 +137,7 @@ def main() -> None:
             }
         )
 
-    cluster_rows(boxes)
+    cluster_rows(pieces)
 
     sheet_stem = Path(image_path).stem
     out_dir = Path(output_root) / sheet_stem
@@ -106,8 +145,14 @@ def main() -> None:
 
     manifest: list[dict] = []
     saved = 0
-    for box in boxes:
-        x, y, w, h = box["x"], box["y"], box["w"], box["h"]
+    for piece in pieces:
+        x, y, w, h = piece["x"], piece["y"], piece["w"], piece["h"]
+        # Clamp rect into image bounds before padding.
+        x = max(0, min(width - 1, x))
+        y = max(0, min(height - 1, y))
+        w = max(1, min(width - x, w))
+        h = max(1, min(height - y, h))
+
         px0 = max(0, x - padding)
         py0 = max(0, y - padding)
         px1 = min(width, x + w + padding)
@@ -117,16 +162,13 @@ def main() -> None:
         sub_label = labels[py0:py1, px0:px1]
 
         comp_mask = np.zeros(sub_label.shape, dtype=bool)
-        for lab in box["members"]:
+        for lab in piece["members"]:
             comp_mask |= sub_label == lab
         comp_mask = ndimage.binary_dilation(comp_mask, iterations=2)
 
         if alpha_mode in ("keep", "fuzzy"):
-            # Use the (filled) component mask as alpha. Preserves bright/white
-            # pixels that fall inside the object's outline.
             alpha = make_alpha_from_mask(comp_mask, alpha_mode)
         else:
-            # "remove": per-pixel brightness test, clipped to the component.
             alpha = make_alpha(sub_rgb, bg, keep_shadow)
             alpha[~comp_mask] = 0
 
@@ -134,8 +176,8 @@ def main() -> None:
         out[:, :, :3] = sub_rgb.astype(np.uint8)
         out[:, :, 3] = alpha
 
-        row = box.get("row", 1)
-        col = box.get("col", saved + 1)
+        row = piece.get("row", 1)
+        col = piece.get("col", saved + 1)
         name = f"sprite_r{row:02d}_c{col:02d}.png"
         Image.fromarray(out, mode="RGBA").save(out_dir / name)
 
@@ -148,7 +190,7 @@ def main() -> None:
                 "y": int(y),
                 "w": int(w),
                 "h": int(h),
-                "id": int(box["id"]),
+                "id": int(piece["id"]),
             }
         )
         saved += 1

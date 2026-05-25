@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { Box, ImageInfo } from '@/types'
 
 const props = defineProps<{
@@ -10,11 +10,15 @@ const props = defineProps<{
   visibleCount: number
   excludedCount: number
   mergedCount: number
+  splitCount: number
   previewing: boolean
   cutting: boolean
   cutProgress: { current: number; total: number } | null
   selectedCount: number
   canMerge: boolean
+  canSplit: boolean
+  splitMode: 'none' | 'v' | 'h'
+  selectedIds: Set<number>
 }>()
 
 const emit = defineEmits<{
@@ -23,6 +27,9 @@ const emit = defineEmits<{
   (e: 'clearSelection'): void
   (e: 'excludeSelected'): void
   (e: 'mergeSelected'): void
+  (e: 'startSplit', direction: 'v' | 'h'): void
+  (e: 'commitSplit', targetId: number, axis: 'v' | 'h', pos: number): void
+  (e: 'cancelSplit'): void
 }>()
 
 const zoom = ref(1)
@@ -37,6 +44,14 @@ const dragging = ref(false)
 const dragStart = ref<{ x: number; y: number; shift: boolean } | null>(null)
 const dragRect = ref<{ x: number; y: number; w: number; h: number } | null>(null)
 
+// Split preview state
+const splitPreview = ref<{ targetId: number; x: number; y: number } | null>(null)
+const selectedBox = computed(() => {
+  if (props.selectedIds.size !== 1) return null
+  const id = Array.from(props.selectedIds)[0]
+  return props.boxes.find((b) => b.id === id) ?? null
+})
+
 function clientToImage(e: MouseEvent) {
   if (!stageRef.value) return { x: 0, y: 0 }
   const rect = stageRef.value.getBoundingClientRect()
@@ -47,8 +62,8 @@ function clientToImage(e: MouseEvent) {
 
 function onMouseDown(e: MouseEvent) {
   if (props.editMode !== 'manual') return
+  if (props.splitMode !== 'none') return
   const target = e.target as Element
-  // Only start marquee on empty stage (image), not on a box group.
   if (target.closest('.bbox-group')) return
   const p = clientToImage(e)
   dragging.value = true
@@ -57,6 +72,17 @@ function onMouseDown(e: MouseEvent) {
 }
 
 function onMouseMove(e: MouseEvent) {
+  if (props.splitMode !== 'none' && selectedBox.value) {
+    const p = clientToImage(e)
+    // Only show preview when mouse is inside the selected box.
+    const b = selectedBox.value
+    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+      splitPreview.value = { targetId: b.id, x: p.x, y: p.y }
+    } else {
+      splitPreview.value = null
+    }
+    return
+  }
   if (!dragging.value || !dragStart.value) return
   const p = clientToImage(e)
   dragRect.value = {
@@ -67,7 +93,17 @@ function onMouseMove(e: MouseEvent) {
   }
 }
 
-function onMouseUp() {
+function onMouseUp(e: MouseEvent) {
+  if (props.splitMode !== 'none' && selectedBox.value && splitPreview.value) {
+    const b = selectedBox.value
+    const p = splitPreview.value
+    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+      const pos = props.splitMode === 'v' ? p.x : p.y
+      emit('commitSplit', b.id, props.splitMode, pos)
+      splitPreview.value = null
+    }
+    return
+  }
   if (dragging.value && dragRect.value && dragStart.value) {
     const r = dragRect.value
     const contained = props.boxes
@@ -86,6 +122,15 @@ function onMouseUp() {
 function zoomIn() { zoom.value = Math.min(3, zoom.value + 0.25) }
 function zoomOut() { zoom.value = Math.max(0.25, zoom.value - 0.25) }
 function zoomReset() { zoom.value = 1 }
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && props.splitMode !== 'none') {
+    emit('cancelSplit')
+    splitPreview.value = null
+  }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
@@ -104,6 +149,10 @@ function zoomReset() { zoom.value = 1 }
         <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
         <span>⨯ <b class="font-mono">{{ mergedCount }}</b> merged</span>
       </div>
+      <div v-if="splitCount" class="flex items-center gap-1.5 rounded-full border border-border bg-bg-elevated/90 px-2.5 py-1 text-[11px] backdrop-blur">
+        <span class="h-1.5 w-1.5 rounded-full bg-teal"></span>
+        <span>÷ <b class="font-mono">{{ splitCount }}</b> split</span>
+      </div>
       <div v-if="imageInfo" class="rounded-full border border-border bg-bg-elevated/90 px-2.5 py-1 font-mono text-[11px] text-text-muted backdrop-blur">
         {{ imageInfo.width }}×{{ imageInfo.height }}
       </div>
@@ -112,8 +161,20 @@ function zoomReset() { zoom.value = 1 }
       </div>
     </div>
 
+    <!-- Split mode banner -->
+    <div
+      v-if="splitMode !== 'none'"
+      class="absolute left-1/2 top-4 z-20 -translate-x-1/2 rounded-md border border-teal bg-bg-elevated px-3 py-1.5 text-[12px] shadow-md"
+    >
+      <b>Split mode ({{ splitMode === 'v' ? 'แนวตั้ง' : 'แนวนอน' }})</b>
+      — ขยับเมาส์เหนือ box ที่เลือก แล้วคลิกเพื่อตัด · กด Esc เพื่อยกเลิก
+    </div>
+
     <!-- Preview stage -->
-    <div class="flex h-full items-center justify-center p-8" :class="editMode === 'manual' ? 'cursor-crosshair' : ''">
+    <div
+      class="flex h-full items-center justify-center p-8"
+      :class="editMode === 'manual' ? (splitMode !== 'none' ? 'cursor-crosshair' : 'cursor-crosshair') : ''"
+    >
       <div
         v-if="imageInfo"
         ref="stageRef"
@@ -140,7 +201,7 @@ function zoomReset() { zoom.value = 1 }
           >
             <rect class="bbox" :x="b.x" :y="b.y" :width="b.w" :height="b.h" />
             <text v-if="showLabels" class="bbox-label" :x="b.x + 4" :y="b.y + 14">
-              {{ String(Math.abs(b.id)).padStart(3, '0') }}
+              {{ String(Math.abs(b.id) % 100000).padStart(3, '0') }}
             </text>
           </g>
           <rect
@@ -156,6 +217,27 @@ function zoomReset() { zoom.value = 1 }
             stroke-dasharray="4 3"
             vector-effect="non-scaling-stroke"
           />
+          <!-- Split preview line -->
+          <template v-if="splitMode !== 'none' && splitPreview && selectedBox">
+            <line
+              v-if="splitMode === 'v'"
+              :x1="splitPreview.x" :y1="selectedBox.y"
+              :x2="splitPreview.x" :y2="selectedBox.y + selectedBox.h"
+              stroke="var(--teal)"
+              stroke-width="2"
+              stroke-dasharray="6 4"
+              vector-effect="non-scaling-stroke"
+            />
+            <line
+              v-else
+              :x1="selectedBox.x" :y1="splitPreview.y"
+              :x2="selectedBox.x + selectedBox.w" :y2="splitPreview.y"
+              stroke="var(--teal)"
+              stroke-width="2"
+              stroke-dasharray="6 4"
+              vector-effect="non-scaling-stroke"
+            />
+          </template>
         </svg>
       </div>
     </div>
@@ -163,11 +245,13 @@ function zoomReset() { zoom.value = 1 }
     <!-- Floating action bar -->
     <Transition name="actionbar">
       <div
-        v-if="selectedCount > 0 && editMode === 'manual'"
+        v-if="selectedCount > 0 && editMode === 'manual' && splitMode === 'none'"
         class="absolute bottom-20 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-md border border-border bg-bg-elevated px-3 py-2 shadow-lg"
       >
         <span class="font-mono text-[12px] text-text-muted">{{ selectedCount }} selected</span>
         <button v-if="canMerge" class="btn-primary !py-1 !text-[12px]" @click="emit('mergeSelected')">รวมเป็นชิ้นเดียว</button>
+        <button v-if="canSplit" class="btn !py-1 !text-[12px]" @click="emit('startSplit', 'v')" title="Split vertically">⫶ Split V</button>
+        <button v-if="canSplit" class="btn !py-1 !text-[12px]" @click="emit('startSplit', 'h')" title="Split horizontally">⫯ Split H</button>
         <button class="btn !py-1 !text-[12px]" @click="emit('excludeSelected')">เขี่ยทิ้ง</button>
         <button class="text-text-faint hover:text-text" @click="emit('clearSelection')">×</button>
       </div>

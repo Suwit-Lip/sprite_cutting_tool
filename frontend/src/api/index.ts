@@ -7,6 +7,7 @@ import type {
   Preset,
   PreviewResponse,
   PromptRecord,
+  SplitEntry,
 } from '@/types'
 
 export const inputApi = {
@@ -25,12 +26,13 @@ export const cutApi = {
   analyze: (image: string) => api.post<AnalyzeResponse>('/cut/analyze', { image }).then((r) => r.data),
   preview: (image: string, params: CutParams) =>
     api.post<PreviewResponse>('/cut/preview', { image, params }).then((r) => r.data),
-  execute: (image: string, params: CutParams, exclude: number[], merge: number[][]) =>
+  execute: (image: string, params: CutParams, exclude: number[], merge: number[][], splits: SplitEntry[] = []) =>
     api.post<{ count: number; outputDir: string; manifest: string }>('/cut/execute', {
       image,
       params,
       exclude,
       merge,
+      splits,
     }).then((r) => r.data),
 }
 

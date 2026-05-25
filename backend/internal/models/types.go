@@ -37,10 +37,23 @@ type PreviewResponse struct {
 }
 
 type CutRequest struct {
-	Image   string    `json:"image"`
-	Params  CutParams `json:"params"`
-	Exclude []int     `json:"exclude"`
-	Merge   [][]int   `json:"merge"`
+	Image   string       `json:"image"`
+	Params  CutParams    `json:"params"`
+	Exclude []int        `json:"exclude"`
+	Merge   [][]int      `json:"merge"`
+	Splits  []SplitEntry `json:"splits"`
+}
+
+type SplitEntry struct {
+	Members []int      `json:"members"`
+	Rects   []SplitBox `json:"rects"`
+}
+
+type SplitBox struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+	W int `json:"w"`
+	H int `json:"h"`
 }
 
 type CutResponse struct {
